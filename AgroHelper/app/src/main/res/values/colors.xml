@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#FFC107</color>
+    <color name="colorPrimaryDark">#ffa000</color>
+    <color name="backgroundColor">#FCFCFC</color>
+    <color name="lightGrayBorder">#EDEDED</color>
+    <color name="deepPurple">#7C4DFF</color>
+    <color name="matYellow">#FFB300</color>
+    <color name="matGreen">#00bfa5</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="loaderBg">#AA000000</color>
+</resources>
