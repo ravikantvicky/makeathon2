@@ -14,6 +14,7 @@ public class AppData {
 
     private SavedContents savedContents;
     private List<CheckupData> checkupDataList = new ArrayList<>();
+    private CheckupData selectedRecord;
 
     private AppData() {
     }
@@ -32,5 +33,13 @@ public class AppData {
 
     public void setCheckupDataList(List<CheckupData> checkupDataList) {
         this.checkupDataList = checkupDataList;
+    }
+
+    public CheckupData getSelectedRecord() {
+        return selectedRecord;
+    }
+
+    public void setSelectedRecord(CheckupData selectedRecord) {
+        this.selectedRecord = selectedRecord;
     }
 }

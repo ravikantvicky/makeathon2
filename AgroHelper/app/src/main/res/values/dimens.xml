@@ -13,5 +13,5 @@
     <dimen name="action_bar_size">36dp</dimen>
 
     <dimen name="list_img_width">150dp</dimen>
-    <dimen name="list_img_height">80dp</dimen>
+    <dimen name="list_img_height">75dp</dimen>
 </resources>

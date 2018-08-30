@@ -1,7 +1,9 @@
 package com.stg.makeathon.agrohelper;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -25,6 +27,7 @@ import com.stg.makeathon.agrohelper.config.SavedContents;
 import com.stg.makeathon.agrohelper.domain.CheckupData;
 import com.stg.makeathon.agrohelper.service.CheckupHistory;
 import com.stg.makeathon.agrohelper.service.FileOperation;
+import com.stg.makeathon.agrohelper.service.FileUtil;
 import com.stg.makeathon.agrohelper.service.FireBaseServices;
 
 import java.io.File;
@@ -33,6 +36,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+
+import id.zelory.compressor.Compressor;
 
 public class HomeActivity extends AppCompatActivity implements CheckupDataListFragment.OnListFragmentInteractionListener,
         DetailsFragment.OnFragmentInteractionListener, WelcomeFragment.OnFragmentInteractionListener {
@@ -43,10 +48,12 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
     private FireBaseServices services = new FireBaseServices();
     private FragmentManager fragmentManager;
     private View progressBarContainer;
+    public Context mContext;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        mContext = this;
         setContentView(R.layout.activity_home);
         fragmentManager = getSupportFragmentManager();
         replaceFragment(WelcomeFragment.newInstance(), WelcomeFragment.class.getSimpleName());
@@ -132,16 +139,27 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
                 Toast.makeText(this, "No Image selected.", Toast.LENGTH_LONG).show();
                 return;
             }
-            if (data == null) {
+            if (data == null || data.getData() == null) {
                 Toast.makeText(this, "No Image selected.", Toast.LENGTH_LONG).show();
                 return;
             }
             try {
                 showProgressBar();
-                services.processImage(data.getData(), new FireBaseServices.OnCompletion() {
+                Uri compressedImg = compressImage(data.getData());
+                if (compressedImg == null) {
+                    Toast.makeText(this, "Error occurred in file selection.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                services.processImage(this, compressedImg, new FireBaseServices.OnCompletion() {
                     @Override
-                    public void onComplete() {
+                    public void onComplete(CheckupData data) {
                         hideProgressBar();
+                        if (data == null) {
+                            Toast.makeText(mContext, "Unable to complete.", Toast.LENGTH_LONG).show();
+                        } else {
+                            AppData.getInstance().setSelectedRecord(data);
+                            replaceFragment(DetailsFragment.newInstance(), DetailsFragment.class.getSimpleName());
+                        }
                     }
                 });
             } catch (Exception e) {
@@ -155,12 +173,24 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
                 return;
             }
             Uri imageUri = Uri.parse(mCurrentPhotoPath);
+
             try {
                 showProgressBar();
-                services.processImage(imageUri, new FireBaseServices.OnCompletion() {
+                Uri compressedImg = compressImage(imageUri);
+                if (compressedImg == null) {
+                    Toast.makeText(this, "Error occurred in image selection.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                services.processImage(this, compressedImg, new FireBaseServices.OnCompletion() {
                     @Override
-                    public void onComplete() {
+                    public void onComplete(CheckupData data) {
                         hideProgressBar();
+                        if (data == null) {
+                            Toast.makeText(mContext, "Unable to complete.", Toast.LENGTH_LONG).show();
+                        } else {
+                            AppData.getInstance().setSelectedRecord(data);
+                            replaceFragment(DetailsFragment.newInstance(), DetailsFragment.class.getSimpleName());
+                        }
                     }
                 });
             } catch (Exception e) {
@@ -243,9 +273,33 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
             progressBarContainer.setVisibility(View.GONE);
     }
 
-    @Override
-    public void onCheckupHistorySelection(CheckupData item) {
+    private Uri compressImage(Uri actImg) {
+        Uri finalImage = null;
+        try {
+            File actualImage = FileUtil.from(this, actImg);
+            File compressedImage = new Compressor(this)
+                    .setMaxWidth(640)
+                    .setMaxHeight(480)
+                    .setQuality(90)
+                    .setCompressFormat(Bitmap.CompressFormat.JPEG)
+                    .setDestinationDirectoryPath(Environment.getExternalStoragePublicDirectory(
+                            Environment.DIRECTORY_PICTURES).getAbsolutePath())
+                    .compressToFile(actualImage);
+            finalImage = Uri.fromFile(compressedImage);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return finalImage;
+    }
 
+    @Override
+    public void onCheckupHistorySelection(CheckupData data) {
+        if (data == null) {
+            Toast.makeText(mContext, "Unable to complete.", Toast.LENGTH_LONG).show();
+        } else {
+            AppData.getInstance().setSelectedRecord(data);
+            replaceFragment(DetailsFragment.newInstance(), DetailsFragment.class.getSimpleName());
+        }
     }
 
     @Override

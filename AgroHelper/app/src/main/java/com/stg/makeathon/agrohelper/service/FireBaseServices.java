@@ -1,6 +1,10 @@
 package com.stg.makeathon.agrohelper.service;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.media.ThumbnailUtils;
 import android.net.Uri;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
@@ -15,16 +19,20 @@ import com.stg.makeathon.agrohelper.config.AppConstants;
 import com.stg.makeathon.agrohelper.config.AppData;
 import com.stg.makeathon.agrohelper.domain.CheckupData;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
 public class FireBaseServices {
     private StorageReference mStorageRef;
     private FirebaseFirestore db;
     private OnCompletion onCompleteListener;
 
-    public void processImage(Uri imageUri, OnCompletion onCompleteListener) {
+    public void processImage(final Context context, final Uri imageUri, OnCompletion onCompleteListener) {
         this.onCompleteListener = onCompleteListener;
         try {
             mStorageRef = FirebaseStorage.getInstance().getReference();
-            String imageFileName = "/images/image-" + System.currentTimeMillis() + ".jpg";
+            final long time = System.currentTimeMillis();
+            String imageFileName = "/images/image-" + time + ".jpg";
             final StorageReference riversRef = mStorageRef.child(imageFileName);
             riversRef.putFile(imageUri).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                 @Override
@@ -32,16 +40,40 @@ public class FireBaseServices {
                     riversRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
                         @Override
                         public void onSuccess(Uri uri) {
-                            Uri downloadUrl = uri;
+                            final Uri downloadUrl = uri;
                             Log.i("processImage", "Image Uploaded with URL: " + downloadUrl.toString());
-                            CheckupData data = new CheckupData();
-                            data.setAppId(AppData.getInstance().getSavedContents().getAppId());
-                            data.setObjType("Normal");
-                            data.setDisease("NA");
-                            data.setInfectedArea("0%");
-                            data.setRemedy("Test");
-                            data.setImageUri(downloadUrl.toString());
-                            saveCheckupData(data);
+                            // Creating Thumbnail
+                            final String thumbFileName = "/images/thumb-" + time + ".png";
+                            try {
+                                Bitmap thumbImage = ThumbnailUtils.extractThumbnail(MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri), 192, 192);
+                                final StorageReference riversRefThumb = mStorageRef.child(thumbFileName);
+                                riversRefThumb.putFile(getImageUri(context, thumbImage)).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                                    @Override
+                                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                        riversRefThumb.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                            @Override
+                                            public void onSuccess(Uri uri) {
+                                                CheckupData data = new CheckupData();
+                                                data.setAppId(AppData.getInstance().getSavedContents().getAppId());
+                                                data.setObjType("Normal");
+                                                data.setDisease("NA");
+                                                data.setInfectedArea("0%");
+                                                data.setRemedy("Test");
+                                                data.setImageUri(downloadUrl.toString());
+                                                data.setThumbUri(uri.toString());
+                                                saveCheckupData(data);
+                                            }
+                                        });
+                                    }
+                                }).addOnFailureListener(new OnFailureListener() {
+                                    @Override
+                                    public void onFailure(@NonNull Exception e) {
+
+                                    }
+                                });
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     });
                 }
@@ -58,7 +90,7 @@ public class FireBaseServices {
         }
     }
 
-    private void saveCheckupData(CheckupData data) {
+    private void saveCheckupData(final CheckupData data) {
         db = FirebaseFirestore.getInstance();
         db.collection(AppConstants.FB_CHECKUP_COLLECTION_NAME)
                 .add(data)
@@ -67,7 +99,7 @@ public class FireBaseServices {
                     public void onSuccess(DocumentReference documentReference) {
                         Log.i("saveData", "Data Saved to Firestore");
                         if (onCompleteListener != null)
-                            onCompleteListener.onComplete();
+                            onCompleteListener.onComplete(data);
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -76,12 +108,19 @@ public class FireBaseServices {
                         Log.e("saveData", "Error in saving data to firestore: " + e.getMessage());
                         e.printStackTrace();
                         if (onCompleteListener != null)
-                            onCompleteListener.onComplete();
+                            onCompleteListener.onComplete(null);
                     }
                 });
     }
 
     public interface OnCompletion {
-        void onComplete();
+        void onComplete(CheckupData data);
+    }
+
+    private Uri getImageUri(Context inContext, Bitmap inImage) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        inImage.compress(Bitmap.CompressFormat.PNG, 100, bytes);
+        String path = MediaStore.Images.Media.insertImage(inContext.getContentResolver(), inImage, "Title", null);
+        return Uri.parse(path);
     }
 }

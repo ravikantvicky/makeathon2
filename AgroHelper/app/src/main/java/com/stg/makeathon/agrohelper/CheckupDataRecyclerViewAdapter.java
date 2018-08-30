@@ -33,11 +33,12 @@ public class CheckupDataRecyclerViewAdapter extends RecyclerView.Adapter<Checkup
     @Override
     public void onBindViewHolder(final ViewHolder holder, int position) {
         holder.mItem = mValues.get(position);
-        Picasso.get().load(mValues.get(position).getImageUri()).resizeDimen(R.dimen.list_img_width, R.dimen.list_img_height).into(holder.checkImg);
+        Picasso.get().load(mValues.get(position).getThumbUri()).fit().placeholder(R.drawable.placeholder_img).into(holder.checkImg);
         holder.objType.setText(mValues.get(position).getObjType());
         holder.disease.setText(mValues.get(position).getDisease());
         holder.infArea.setText(mValues.get(position).getInfectedArea());
         holder.remedy.setText(mValues.get(position).getRemedy());
+        holder.date.setText(mValues.get(position).getUpdateTime());
 
         holder.mView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -57,7 +58,7 @@ public class CheckupDataRecyclerViewAdapter extends RecyclerView.Adapter<Checkup
     public class ViewHolder extends RecyclerView.ViewHolder {
         public final View mView;
         public final ImageView checkImg;
-        public final TextView objType, disease, infArea, remedy;
+        public final TextView objType, disease, infArea, remedy, date;
         public CheckupData mItem;
 
         public ViewHolder(View view) {
@@ -68,6 +69,7 @@ public class CheckupDataRecyclerViewAdapter extends RecyclerView.Adapter<Checkup
             disease = view.findViewById(R.id.disease);
             infArea = view.findViewById(R.id.infectedArr);
             remedy = view.findViewById(R.id.remedy);
+            date = view.findViewById(R.id.date);
         }
 
         @Override
