@@ -1,5 +1,6 @@
 package com.stg.makeathon.agrohelper.service;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.media.ThumbnailUtils;
@@ -27,7 +28,7 @@ public class FireBaseServices {
     private FirebaseFirestore db;
     private OnCompletion onCompleteListener;
 
-    public void processImage(final Context context, final Uri imageUri, OnCompletion onCompleteListener) {
+    public void processImage(final Context context, final Uri imageUri, final String latitude, final String longitude, final OnCompletion onCompleteListener) {
         this.onCompleteListener = onCompleteListener;
         try {
             mStorageRef = FirebaseStorage.getInstance().getReference();
@@ -45,7 +46,7 @@ public class FireBaseServices {
                             // Creating Thumbnail
                             final String thumbFileName = "/images/thumb-" + time + ".png";
                             try {
-                                Bitmap thumbImage = ThumbnailUtils.extractThumbnail(MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri), 192, 192);
+                                Bitmap thumbImage = ThumbnailUtils.extractThumbnail(MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri), AppConstants.THUMBNAIL_IMG_SIZE, AppConstants.THUMBNAIL_IMG_SIZE);
                                 final StorageReference riversRefThumb = mStorageRef.child(thumbFileName);
                                 riversRefThumb.putFile(getImageUri(context, thumbImage)).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                                     @Override
@@ -61,7 +62,32 @@ public class FireBaseServices {
                                                 data.setRemedy("Test");
                                                 data.setImageUri(downloadUrl.toString());
                                                 data.setThumbUri(uri.toString());
-                                                saveCheckupData(data);
+                                                data.setLatitude(latitude);
+                                                data.setLongitude(longitude);
+
+                                                // Applying ML
+                                                try {
+                                                    Bitmap mlImg = MediaStore.Images.Media.getBitmap(context.getContentResolver(), imageUri);
+                                                    FireBaseMLService.startMLService(mlImg, data, new FireBaseMLService.OnCompleteCallback() {
+                                                        @Override
+                                                        public void onSuccess(CheckupData data) {
+                                                            saveCheckupData(data);
+                                                            // onCompleteListener.onComplete(data);
+                                                        }
+
+                                                        @Override
+                                                        public void onFailure(String error) {
+                                                            onCompleteListener.onComplete(null);
+                                                        }
+                                                    });
+                                                    /*Bitmap scalledBM = Bitmap.createScaledBitmap(mlImg, AppConstants.ML_KIT_DIM_IMG_SIZE_X, AppConstants.ML_KIT_DIM_IMG_SIZE_Y,
+                                                            true);
+                                                    ImageClassifier imageClassifier = new ImageClassifier((Activity) context);
+                                                    String val = imageClassifier.classifyFrame(scalledBM);
+                                                    Log.i("ML Data", "Return Val: " + val);*/
+                                                } catch (IOException e) {
+                                                    e.printStackTrace();
+                                                }
                                             }
                                         });
                                     }

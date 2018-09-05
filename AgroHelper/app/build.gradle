@@ -18,6 +18,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    sourceSets { main { res.srcDirs = ['src/main/res', 'src/main/res/anim'] } }
+    aaptOptions {
+        noCompress "tflite"
+        noCompress "lite"
+    }
 }
 
 dependencies {
@@ -31,6 +36,7 @@ dependencies {
     implementation 'com.android.support:recyclerview-v7:27.1.0'
     implementation 'com.squareup.picasso:picasso:2.71828'
     implementation 'com.android.support:support-v4:27.1.0'
+    implementation 'com.google.android.gms:play-services-maps:15.0.1'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
@@ -38,6 +44,9 @@ dependencies {
     implementation 'id.zelory:compressor:2.1.0'
     implementation 'com.google.firebase:firebase-core:16.0.3'
     implementation 'com.android.support:multidex:1.0.3'
+    implementation 'com.google.firebase:firebase-ml-model-interpreter:16.2.0'
+    implementation 'org.tensorflow:tensorflow-lite:+'
+    implementation 'com.google.code.gson:gson:2.8.5'
 }
 
 apply plugin: 'com.google.gms.google-services'

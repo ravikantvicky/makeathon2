@@ -1,16 +1,21 @@
 package com.stg.makeathon.agrohelper.domain;
 
+import android.support.annotation.NonNull;
+
+import com.stg.makeathon.agrohelper.config.AppConstants;
+
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class CheckupData {
+public class CheckupData implements Comparable<CheckupData> {
     private String appId, objType, disease, infectedArea, remedy, imageUri, thumbUri, latitude, longitude, updateTime;
-
+    private int diseaseId;
     public CheckupData() {
         this.updateTime = getCurrentTime();
     }
 
-    public CheckupData(String appId, String objType, String disease, String infectedArea, String remedy, String imageUri, String thumbUri, String latitude, String longitude) {
+    public CheckupData(String appId, String objType, String disease, String infectedArea, String remedy, String imageUri, String thumbUri, String latitude, String longitude, int diseaseId) {
         this.appId = appId;
         this.objType = objType;
         this.disease = disease;
@@ -21,11 +26,11 @@ public class CheckupData {
         this.latitude = latitude;
         this.longitude = longitude;
         this.updateTime = getCurrentTime();
+        this.diseaseId = diseaseId;
     }
 
     private String getCurrentTime() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        return sdf.format(new Date());
+        return AppConstants.DB_DATE_FORMAT.format(new Date());
     }
 
     public String getAppId() {
@@ -106,5 +111,30 @@ public class CheckupData {
 
     public void setUpdateTime(String updateTime) {
         this.updateTime = updateTime;
+    }
+
+    public int getDiseaseId() {
+        return diseaseId;
+    }
+
+    public void setDiseaseId(int diseaseId) {
+        this.diseaseId = diseaseId;
+    }
+
+    @Override
+    public int compareTo(@NonNull CheckupData checkupData) {
+        try {
+            Date a = AppConstants.DB_DATE_FORMAT.parse(getUpdateTime());
+            Date b = AppConstants.DB_DATE_FORMAT.parse(checkupData.getUpdateTime());
+            if (a.after(b))
+                return -1;
+            else if (a.before(b))
+                return 1;
+            else
+                return 0;
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 }

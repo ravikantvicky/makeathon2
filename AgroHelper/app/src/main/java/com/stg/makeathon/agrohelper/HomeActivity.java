@@ -1,20 +1,30 @@
 package com.stg.makeathon.agrohelper;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -33,6 +43,7 @@ import com.stg.makeathon.agrohelper.service.FireBaseServices;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -40,7 +51,8 @@ import java.util.UUID;
 import id.zelory.compressor.Compressor;
 
 public class HomeActivity extends AppCompatActivity implements CheckupDataListFragment.OnListFragmentInteractionListener,
-        DetailsFragment.OnFragmentInteractionListener, WelcomeFragment.OnFragmentInteractionListener {
+        DetailsFragment.OnFragmentInteractionListener, WelcomeFragment.OnFragmentInteractionListener, LocationListener,
+        ReportFragment.OnFragmentInteractionListener {
     private int CAMERA_EVENT = 0, GALLERY_EVENT = 1;
     private FloatingActionButton startCamera, openGallery;
     private String mCurrentPhotoPath;
@@ -49,6 +61,9 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
     private FragmentManager fragmentManager;
     private View progressBarContainer;
     public Context mContext;
+    private Toolbar toolbar;
+    private LocationManager mLocationManager;
+    private Uri finalImage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,13 +71,15 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
         mContext = this;
         setContentView(R.layout.activity_home);
         fragmentManager = getSupportFragmentManager();
-        replaceFragment(WelcomeFragment.newInstance(), WelcomeFragment.class.getSimpleName());
-        checkAndCreateAppId();
+        if (AppData.getInstance().getCheckupDataList().size() > 0)
+            replaceFragment(CheckupDataListFragment.newInstance(1), CheckupDataListFragment.class.getSimpleName());
+        else
+            replaceFragment(WelcomeFragment.newInstance(), WelcomeFragment.class.getSimpleName());
         FirebaseUser user = mAuth.getCurrentUser();
         if (user == null) {
             mAuth.signInAnonymously();
         }
-        Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
         progressBarContainer = findViewById(R.id.progressContainer);
@@ -105,35 +122,17 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
                 startActivityForResult(chooserIntent, GALLERY_EVENT);
             }
         });
-        // Fetching History Data
-        try {
-            CheckupHistory historyService = new CheckupHistory();
-            historyService.getCheckupHistory(new CheckupHistory.OnServiceCompleteListener() {
-                @Override
-                public void onSuccess(List<CheckupData> checkupDataList) {
-                    if (checkupDataList == null)
-                        Log.e("Checkup History", "Null value in checkupDataList");
-                    else {
-                        Log.i("Checkup History", checkupDataList.size() + " records found.");
-                        if (checkupDataList.size() > 0){
-                            AppData.getInstance().setCheckupDataList(checkupDataList);
-                            replaceFragment(CheckupDataListFragment.newInstance(1), CheckupDataListFragment.class.getSimpleName());
-                        }
-                    }
-                }
-
-                @Override
-                public void onError(String errorMsg) {
-                    Log.e("Checkup History", errorMsg);
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
+        mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            showErrorDialog("Error", "No access to GPS.");
+        } else {
+            mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
         }
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        AppConstants.SELECTED_IMG = null;
         if (requestCode == GALLERY_EVENT) {
             if (resultCode != Activity.RESULT_OK) {
                 Toast.makeText(this, "No Image selected.", Toast.LENGTH_LONG).show();
@@ -145,23 +144,13 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
             }
             try {
                 showProgressBar();
-                Uri compressedImg = compressImage(data.getData());
-                if (compressedImg == null) {
+                finalImage = compressImage(data.getData());
+                AppConstants.SELECTED_IMG = finalImage.toString();
+                if (finalImage == null) {
                     Toast.makeText(this, "Error occurred in file selection.", Toast.LENGTH_LONG).show();
                     return;
                 }
-                services.processImage(this, compressedImg, new FireBaseServices.OnCompletion() {
-                    @Override
-                    public void onComplete(CheckupData data) {
-                        hideProgressBar();
-                        if (data == null) {
-                            Toast.makeText(mContext, "Unable to complete.", Toast.LENGTH_LONG).show();
-                        } else {
-                            AppData.getInstance().setSelectedRecord(data);
-                            replaceFragment(DetailsFragment.newInstance(), DetailsFragment.class.getSimpleName());
-                        }
-                    }
-                });
+                callFBImgService();
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Error occurred in file selection.", Toast.LENGTH_LONG).show();
@@ -176,29 +165,42 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
 
             try {
                 showProgressBar();
-                Uri compressedImg = compressImage(imageUri);
-                if (compressedImg == null) {
+                finalImage = compressImage(imageUri);
+                if (finalImage == null) {
                     Toast.makeText(this, "Error occurred in image selection.", Toast.LENGTH_LONG).show();
                     return;
                 }
-                services.processImage(this, compressedImg, new FireBaseServices.OnCompletion() {
-                    @Override
-                    public void onComplete(CheckupData data) {
-                        hideProgressBar();
-                        if (data == null) {
-                            Toast.makeText(mContext, "Unable to complete.", Toast.LENGTH_LONG).show();
-                        } else {
-                            AppData.getInstance().setSelectedRecord(data);
-                            replaceFragment(DetailsFragment.newInstance(), DetailsFragment.class.getSimpleName());
-                        }
-                    }
-                });
+                callFBImgService();
             } catch (Exception e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Error occurred in file selection.", Toast.LENGTH_LONG).show();
                 return;
             }
         }
+    }
+
+    private void callActFBImgService(String latitude, String longitude) {
+        services.processImage(this, finalImage, latitude, longitude, new FireBaseServices.OnCompletion() {
+            @Override
+            public void onComplete(CheckupData data) {
+                hideProgressBar();
+                if (data == null) {
+                    Toast.makeText(mContext, "Unable to complete.", Toast.LENGTH_LONG).show();
+                } else {
+                    AppData.getInstance().setSelectedRecord(data);
+                    AppData.getInstance().getCheckupDataList().add(data);
+                    replaceFragment(DetailsFragment.newInstance(), DetailsFragment.class.getSimpleName());
+                }
+            }
+        });
+    }
+
+    private void callFBImgService() {
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            showErrorDialog("Error", "Location Service not enabled. Please check location permission and enable GPS.");
+            return;
+        }
+        callActFBImgService(AppData.getInstance().getSavedContents().getLatitude(), AppData.getInstance().getSavedContents().getLongitude());
     }
 
     private File createImageFile() throws IOException {
@@ -215,51 +217,40 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
         return image;
     }
 
-    private void checkAndCreateAppId() {
-        try {
-            FileOperation.getDataFromFile(this, AppConstants.SAVED_CONFIG_FILE_NAME, new FileOperation.FileOperationCallback() {
-                @Override
-                public void onSuccess(Object response) {
-                    if (response != null && response instanceof SavedContents)
-                        AppData.getInstance().setSavedContents((SavedContents) response);
-                    String appId = AppData.getInstance().getSavedContents().getAppId();
-                    Log.i("getAppData", "Retrieved AppId: " + appId);
-                    if (appId == null || appId.trim().length() == 0)
-                        generateAppId();
-                }
-
-                @Override
-                public void onError(String errMsg) {
-                    generateAppId();
-                }
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void generateAppId() {
-        final String appId = UUID.randomUUID().toString();
-        if (AppData.getInstance().getSavedContents() == null)
-            AppData.getInstance().setSavedContents(new SavedContents());
-        AppData.getInstance().getSavedContents().setAppId(appId);
-        Log.i("generateAppId", "Generated AppId: " + appId);
-        FileOperation.saveDataToFile(this, AppConstants.SAVED_CONFIG_FILE_NAME, AppData.getInstance().getSavedContents(), new FileOperation.FileOperationCallback() {
-            @Override
-            public void onSuccess(Object response) {
-                Log.i("Save AppId", "Generated and Saved App Id: " + appId);
-            }
-
-            @Override
-            public void onError(String errMsg) {
-                Log.e("Save AppId", "Error in saving AppId: " + errMsg);
-            }
-        });
-    }
-
     private void replaceFragment(Fragment fragment, String tag) {
         if (!isFinishing() && fragmentManager != null) {
-            fragmentManager.beginTransaction().replace(R.id.mainContent, fragment, tag).commit();
+            FragmentTransaction ft = fragmentManager.beginTransaction();
+            if (fragment instanceof DetailsFragment || fragment instanceof ReportFragment) {
+                if (getSupportActionBar() != null)
+                    getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+                if (toolbar != null) {
+                    toolbar.setNavigationOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            replaceFragment(CheckupDataListFragment.newInstance(1), CheckupDataListFragment.class.getSimpleName());
+                        }
+                    });
+                }
+                if (startCamera != null)
+                    startCamera.setVisibility(View.GONE);
+                if (openGallery != null)
+                    openGallery.setVisibility(View.GONE);
+            } else {
+                if (getSupportActionBar() != null)
+                    getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+                if (toolbar != null) {
+                    toolbar.setNavigationOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                        }
+                    });
+                }
+                if (startCamera != null)
+                    startCamera.setVisibility(View.VISIBLE);
+                if (openGallery != null)
+                    openGallery.setVisibility(View.VISIBLE);
+            }
+            ft.replace(R.id.mainContent, fragment, tag).commit();
         }
     }
 
@@ -278,9 +269,9 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
         try {
             File actualImage = FileUtil.from(this, actImg);
             File compressedImage = new Compressor(this)
-                    .setMaxWidth(640)
-                    .setMaxHeight(480)
-                    .setQuality(90)
+                    .setMaxWidth(AppConstants.COMPRESSED_IMG_MAX_WIDTH)
+                    .setMaxHeight(AppConstants.COMPRESSED_IMG_MAX_HEIGHT)
+                    .setQuality(100)
                     .setCompressFormat(Bitmap.CompressFormat.JPEG)
                     .setDestinationDirectoryPath(Environment.getExternalStoragePublicDirectory(
                             Environment.DIRECTORY_PICTURES).getAbsolutePath())
@@ -295,7 +286,7 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
     @Override
     public void onCheckupHistorySelection(CheckupData data) {
         if (data == null) {
-            Toast.makeText(mContext, "Unable to complete.", Toast.LENGTH_LONG).show();
+            showErrorDialog("Error", "Error while finding disease.");
         } else {
             AppData.getInstance().setSelectedRecord(data);
             replaceFragment(DetailsFragment.newInstance(), DetailsFragment.class.getSimpleName());
@@ -315,5 +306,67 @@ public class HomeActivity extends AppCompatActivity implements CheckupDataListFr
     @Override
     public void onProgressComplete() {
         hideProgressBar();
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        if (location != null) {
+            AppData.getInstance().getSavedContents().setLatitude(location.getLatitude()+"");
+            AppData.getInstance().getSavedContents().setLongitude(location.getLongitude()+"");
+            Log.d("Location Changed", location.getLatitude() + " and " + location.getLongitude());
+        }
+    }
+
+    @Override
+    public void onStatusChanged(String s, int i, Bundle bundle) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String s) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String s) {
+
+    }
+
+    private void showErrorDialog(String title, String message) {
+        AlertDialog.Builder errorDialogBuilder = new AlertDialog.Builder(this);
+        errorDialogBuilder.setTitle(title);
+        errorDialogBuilder.setMessage(message);
+        errorDialogBuilder.setCancelable(true);
+        errorDialogBuilder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                dialogInterface.cancel();
+            }
+        });
+        errorDialogBuilder.create().show();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_home, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_report) {
+            replaceFragment(ReportFragment.newInstance(null, null), ReportFragment.class.getSimpleName());
+            return true;
+        } else if (id == R.id.action_map) {
+            Intent intent = new Intent(this, MapsActivity.class);
+            startActivity(intent);
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onFragmentInteraction(Uri uri) {
+
     }
 }

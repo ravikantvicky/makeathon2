@@ -89,27 +89,7 @@
                     <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="center_horizontal"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Inf. Area" />
-
-                        <TextView
-                            android:id="@+id/infectedArr"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_horizontal"
-                            android:textColor="@android:color/holo_red_dark"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
                         android:layout_weight="1"
                         android:gravity="end"
                         android:orientation="vertical">
@@ -117,15 +97,10 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Remedy" />
-
-                        <TextView
-                            android:id="@+id/remedy"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="end"
-                            android:textColor="@color/matGreen"
+                            android:text="View Details"
+                            android:textColor="@android:color/holo_blue_dark"
                             android:textSize="16sp" />
+
                     </LinearLayout>
 
                 </LinearLayout>

@@ -3,8 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.stg.makeathon.agrohelper.HomeActivity">
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/action_map"
+        android:title="Disease on Map" />
+    <item
+        android:id="@+id/action_report"
         android:orderInCategory="100"
-        android:title="@string/action_settings"
+        android:title="View Reports"
         app:showAsAction="never" />
 </menu>

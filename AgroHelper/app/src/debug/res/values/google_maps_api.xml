@@ -1,0 +1,24 @@
+<resources>
+    <!--
+    TODO: Before you run your application, you need a Google Maps API key.
+
+    To get one, follow this link, follow the directions and press "Create" at the end:
+
+    https://console.developers.google.com/flows/enableapi?apiid=maps_android_backend&keyType=CLIENT_SIDE_ANDROID&r=F0:26:CD:A8:02:ED:3B:53:47:23:05:D5:E9:C7:B3:DC:C5:81:07:9D%3Bcom.stg.makeathon.agrohelper
+
+    You can also add your credentials to an existing key, using these values:
+
+    Package name:
+    F0:26:CD:A8:02:ED:3B:53:47:23:05:D5:E9:C7:B3:DC:C5:81:07:9D
+
+    SHA-1 certificate fingerprint:
+    F0:26:CD:A8:02:ED:3B:53:47:23:05:D5:E9:C7:B3:DC:C5:81:07:9D
+
+    Alternatively, follow the directions here:
+    https://developers.google.com/maps/documentation/android/start#get-key
+
+    Once you have your key (it starts with "AIza"), replace the "google_maps_key"
+    string in this file.
+    -->
+    <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">AIzaSyCsRrsHCNv1yTfK1slvO9UGKTQUv-YY-6M</string>
+</resources>

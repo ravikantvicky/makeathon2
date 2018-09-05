@@ -9,8 +9,10 @@ import android.widget.TextView;
 
 import com.squareup.picasso.Picasso;
 import com.stg.makeathon.agrohelper.CheckupDataListFragment.OnListFragmentInteractionListener;
+import com.stg.makeathon.agrohelper.config.AppConstants;
 import com.stg.makeathon.agrohelper.domain.CheckupData;
 
+import java.text.ParseException;
 import java.util.List;
 
 public class CheckupDataRecyclerViewAdapter extends RecyclerView.Adapter<CheckupDataRecyclerViewAdapter.ViewHolder> {
@@ -36,9 +38,11 @@ public class CheckupDataRecyclerViewAdapter extends RecyclerView.Adapter<Checkup
         Picasso.get().load(mValues.get(position).getThumbUri()).fit().placeholder(R.drawable.placeholder_img).into(holder.checkImg);
         holder.objType.setText(mValues.get(position).getObjType());
         holder.disease.setText(mValues.get(position).getDisease());
-        holder.infArea.setText(mValues.get(position).getInfectedArea());
-        holder.remedy.setText(mValues.get(position).getRemedy());
-        holder.date.setText(mValues.get(position).getUpdateTime());
+        try {
+            holder.date.setText(AppConstants.UI_DATE_FORMAT.format(AppConstants.DB_DATE_FORMAT.parse(mValues.get(position).getUpdateTime())));
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
 
         holder.mView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -58,7 +62,7 @@ public class CheckupDataRecyclerViewAdapter extends RecyclerView.Adapter<Checkup
     public class ViewHolder extends RecyclerView.ViewHolder {
         public final View mView;
         public final ImageView checkImg;
-        public final TextView objType, disease, infArea, remedy, date;
+        public final TextView objType, disease, date;
         public CheckupData mItem;
 
         public ViewHolder(View view) {
@@ -67,8 +71,6 @@ public class CheckupDataRecyclerViewAdapter extends RecyclerView.Adapter<Checkup
             checkImg = view.findViewById(R.id.checkImg);
             objType = view.findViewById(R.id.objType);
             disease = view.findViewById(R.id.disease);
-            infArea = view.findViewById(R.id.infectedArr);
-            remedy = view.findViewById(R.id.remedy);
             date = view.findViewById(R.id.date);
         }
 

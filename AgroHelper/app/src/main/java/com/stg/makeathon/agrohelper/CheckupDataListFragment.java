@@ -13,6 +13,8 @@ import android.view.ViewGroup;
 import com.stg.makeathon.agrohelper.config.AppData;
 import com.stg.makeathon.agrohelper.domain.CheckupData;
 
+import java.util.Collections;
+
 public class CheckupDataListFragment extends Fragment {
     private static final String ARG_COLUMN_COUNT = "column-count";
     private int mColumnCount = 1;
@@ -54,6 +56,7 @@ public class CheckupDataListFragment extends Fragment {
             } else {
                 recyclerView.setLayoutManager(new GridLayoutManager(context, mColumnCount));
             }
+            Collections.sort(AppData.getInstance().getCheckupDataList());
             recyclerView.setAdapter(new CheckupDataRecyclerViewAdapter(AppData.getInstance().getCheckupDataList(), mListener));
         }
         return view;
